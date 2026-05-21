@@ -10,15 +10,38 @@ The Sovol SVO6 Ace's electronics all run Sovol's modified version of Klipper and
 - The STM32F103 MCU in the toolhead, communicating via the PA11 and PA12 pins for USB. In Linux, this is accessed via `/dev/serial/by-id/usb-Klipper_stm32f103xe_xxxxxxxxxxxxxxxxxx`.
 
 - Both MCUs are flashable via the SWD interface, which I used. 
+## Prerequisites
+  - The printer must be connected to the internet. 
+  - First, create a backup of all the config files on your original Sovol SV08. You can do this in the web/mainsail interface -> Machine -> Select all files/folders -> Download.
+    - Optionally you can also SSH or SFTP into your machine (port: 22, username/password: sovol/sovol) and backup additional .sh scripts in the /home/sovol/ folder.
+    - For example use PuTTY for SSH and WinSCP for SFTP (SSH File Transfer Protocol).
+- You WILL need the printer.cfg later in this process (for the /dev/serial/by-id/usb-Klipperstm32f103xe serial).
+- You will need an ST-Link V2 (Mini) with the STM32CubeProgrammer software installed to be able to update/flash the MCU firmware.
+- ~~The files used for this guide can now be found together in the GitHub folder /files-used/ HERE~~ (coming soon)
+- To edit the different files during this guide please use a text editor like Notepad++ (or use nano from ssh). This way we can make sure the files stay in a proper format with proper (Linux style) line endings and work as intended. When using the default Windows Notepad this is not always the case!
+- If at any point things have gone very wrong (bricked) Sovol has its own instructions for reflashing the printer to stock software[here](https://wiki.sovol3d.com/en/SV06-ACE-image-flashing-tutorial).
+- (kinda plagarized the SV08 mainline markdown) 
 
-## Step 1: Removing existing Sovol stuff 
-This assumes you haven't made any major (software) changes to your Ace, and if you've changed any important configs, it's probably good back them up now. 
-I started this off the stock software. If at any point things have gone very wrong (bricked) Sovol has its own instructions for reflashing the CPU [here](https://wiki.sovol3d.com/en/SV06-ACE-image-flashing-tutorial).  
-First, I SSH'd into the sovol machine: `ssh sovol@sovol.lan`. The password for this is "sovol".  
-(update your sources.list if you want to)  
-Update your system if you haven't already: `sudo apt update && sudo apt upgrade` 
+## Step 1: Replace Sovol files
 
-To uninstall Klipper I used [KIAUH](https://github.com/dw-0/kiauh). Sovol's KIAUH is outdated and it will update automatically.
+1. SSH into the sovol machine. This can be achieved via:
+   1. [PuTTY](https://www.putty.org/index.html) (Windows)
+   2. The default command line SSH line (`ssh username@ip`)
+   3. The username for the Ace is `sovol` by default and the ip address can be accessed via tapping the wifi icon in the Ace's screen. If you can't find the IP address, try `sovol` or `sovol.lan` instead of the ip address.
+   4. The password for the Ace is `sovol`.
+2. Update your system via the command line. Type: `sudo apt update && sudo apt upgrade` and follow any command prompts as necessary(eg. typing `y/n`) This step may take some time.
+  1. If you want, update your `/etc/apt/sources.list` before updating but this is probably optional.
+4. To remove the Sovol files, we will be using [KIAUH](https://github.com/dw-0/kiauh), which Sovol has included in their system.
+  1. Change to the home directory and run the KIAUH script with: `cd ~ && ./kiauh/kiauh.sh`
+  2. KIAUH should open a window in the terminal showing your installed software. Type `3` to move to the uninstallation section.
+  3. Type `1` to uninstall Klipper, and uninstall it completely (select all services to install).
+  4. Type `2` to uninstall Moonraker in a similar fashion.
+  5. Exit the kiauh script with `b` and `q`. 
+  6. In case the Klipper and Moonraker folders haven't been completely removed, remove them: `sudo rm -rf klipper klippy-env moonraker moonraker-env`
+5. Install the Klipper and Moonraker files with KIAUH.
+
+
+
 From this I uninstalled both Klipper and Moonraker (`./kiauh/kiauh` and its easy from there)
 Finally, I removed a bunch of folders. The Klipper and Moonraker folders didn't uninstall after KIAUH so I removed them:   
 ```
