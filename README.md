@@ -3,7 +3,7 @@ Here's what I did to mainline my Ace! This is supposed to turn into some sort of
 Big thanks to ksnv for this btw
 
 ## Background 
-The Sovol SVO6 Ace's electronics all run Sovol's modified version of Klipper and thus all need to be updated. They are: 
+The Sovol SV06 Ace's electronics all run Sovol's modified version of Klipper and thus all need to be updated. They are: 
 - The Rockchip RK3308 4-core CPU, which has and runs the actual Klipper instance
 - A virtual instance of Klipper running on the RK3308 to monitor the input of the lis2dw accelerometer in the print bed. This is run by `klipper-mcu.service` and communicates with the CPU via `/tmp/klipper_host_mcu.` 
 - The GD32F425 MCU in the mainboard, which is an STM32F407 clone. This communicates via the PA10 and PA9 pins in the USART1 section and is accessible via `/dev/ttyS1`.
@@ -19,7 +19,7 @@ The Sovol SVO6 Ace's electronics all run Sovol's modified version of Klipper and
 - You will need an ST-Link V2 (Mini) with the STM32CubeProgrammer software installed to be able to update/flash the MCU firmware.
 - ~~The files used for this guide can now be found together in the GitHub folder /files-used/ HERE~~ (coming soon)
 - To edit the different files during this guide please use a text editor like Notepad++ (or use nano from ssh). This way we can make sure the files stay in a proper format with proper (Linux style) line endings and work as intended. When using the default Windows Notepad this is not always the case!
-- If at any point things have gone very wrong (bricked) Sovol has its own instructions for reflashing the printer to stock software[here](https://wiki.sovol3d.com/en/SV06-ACE-image-flashing-tutorial).
+- If at any point things have gone very wrong (bricked) Sovol has its own instructions for reflashing the printer to stock software [here](https://wiki.sovol3d.com/en/SV06-ACE-image-flashing-tutorial).
 - (kinda plagarized the SV08 mainline markdown) 
 
 ## Step 1: Replace Sovol files
@@ -30,47 +30,44 @@ The Sovol SVO6 Ace's electronics all run Sovol's modified version of Klipper and
    3. The username for the Ace is `sovol` by default and the ip address can be accessed via tapping the wifi icon in the Ace's screen. If you can't find the IP address, try `sovol` or `sovol.lan` instead of the ip address.
    4. The password for the Ace is `sovol`.
 2. Update your system via the command line. Type: `sudo apt update && sudo apt upgrade` and follow any command prompts as necessary(eg. typing `y/n`) This step may take some time.
-  1. If you want, update your `/etc/apt/sources.list` before updating but this is probably optional.
+	1. If you want, update your `/etc/apt/sources.list` before updating but this is probably optional.
 4. To remove the Sovol files, we will be using [KIAUH](https://github.com/dw-0/kiauh), which Sovol has included in their system.
-  1. Change to the home directory and run the KIAUH script with: `cd ~ && ./kiauh/kiauh.sh`
-  2. KIAUH should open a window in the terminal showing your installed software. Type `3` to move to the uninstallation section.
-  3. Type `1` to uninstall Klipper, and uninstall it completely (select all services to install).
-  4. Type `2` to uninstall Moonraker in a similar fashion.
-  5. Exit the kiauh script with `b` and `q`. 
-  6. In case the Klipper and Moonraker folders haven't been completely removed, remove them: `sudo rm -rf klipper klippy-env moonraker moonraker-env`
-5. Install the Klipper and Moonraker files with KIAUH.
-
-
-
-From this I uninstalled both Klipper and Moonraker (`./kiauh/kiauh` and its easy from there)
-Finally, I removed a bunch of folders. The Klipper and Moonraker folders didn't uninstall after KIAUH so I removed them:   
+	1. Change to the home directory and run the KIAUH script with:
 ```
-sudo rm -rf klipper klippy-env moonraker moonraker-env moonraker-obico
-```     
-Also, for some reason Sovol has a startup script to uninstall `libnewlib-arm-none-eabi` and `gcc-arm-none-eabi`, two libraries that are used to compile the Katapult and Klipper binaries. The script is located in `~/printer_data/start.sh`, and I commented out the uninstallation lines: 
+cd ~ && ./kiauh/kiauh.sh
+```
+  2. KIAUH should open a window in the terminal showing your installed software. Type `3` to move to the uninstallation section.
+ 3. Type `1` to uninstall Klipper, and uninstall it completely (select all services to install).
+ 4. Type `2` to uninstall Moonraker in a similar fashion.
+ 5. Exit the kiauh script with `b` and `q`.
+ 6. In case the Klipper and Moonraker folders haven't been completely removed, remove them: `sudo rm -rf klipper klippy-env moonraker moonraker-env`
+5. Sovol has a startup script to automatically remove the libraries `libnew-arm-none-eabi` and `gcc-arm-none-eabi`, which we will need later on so disable it:
+   1. Open the startup script with `nano ~/printer_data/start.sh`.
+   2. Put a hashtag in front of the two lines starting with `nohup`.
+   3. At the end, these lines should look something like this:
 ```
 #nohup sudo apt-get remove --purge libnewlib-arm-none-eabi -y &
 #nohup sudo apt remove --purge gcc-arm-none-eabi -y &
 ```
+6. Install the Klipper and Moonraker files with KIAUH.
+	1. Run the script again with `./kiauh/kiauh.sh`.
+ 2. Type `1` to enter the installation mode, and install Kli
+ 3. add more on details soon
 
-## Step 2: Adding back mainline versions of Klipper and Moonraker
-This part was kind of easy. Just run KIAUH again and install Klipper and Moonraker. 
-Additionally, install two required libraries: 
-```
-sudo apt install libnewlib-arm-none-eabi gcc-arm-none-eabi
-```
-ill add more but like yall have def used kiauh before 
-
-
-## Step 3: Configuring Katapult
-The [Katapult](https://github.com/Arksine/katapult) bootloader allows for repeated Klipper flashing via the `/dev/ttyS1` and `/dev/serial/by-id/` interfaces.  
-To install Katapult, run: `git clone https://github.com/Arksine/katapult.git `      
-To configure the bootloader for the mainboard MCU, I ran `make meuconfig` and selected the following options on the pop-up screen:
+## Step 2: Configuring Katapult
+The [Katapult](https://github.com/Arksine/katapult) bootloader allows for repeated Klipper flashing via the `/dev/ttyS1` and `/dev/serial/by-id/` interfaces, making Klipper easier to update. It's open source as well!
+1. To install Katapult, run: `git clone https://github.com/Arksine/katapult.git `
+2. Enter the Katapult folder and make a new directory called `binaries` with `cd katapult && mkdir binaries`.     
+3. For the mainboard MCU: 
+   1. To configure Katapult, run `make meuconfig` and select the following options on the pop-up screen with the arrow keys:
 <img width="1166" height="648" alt="image" src="https://github.com/user-attachments/assets/5b92b5ca-53d8-48a2-bc9e-a1648659698a" />
-The size of the bootloader offset doesn't matter so much as long as it's the same as the bootloader offset configured in Klipper.   
-also the "bootloader entry on rapid double click of reset button" is kinda iffy but its what I did to make it work. 
-
-To compile the bootloader, I ran `make clean` and `make -j3` (3 cores faster but doenst use all 4 cores). This generated a binary `~/katapult/out/katapult.bin`. I moved this file to a new folder `~katapult/binaries` and renamed it katapult_mcu.bin but the name doesn't really matter.
+	2. To compile Katapult, run:
+```
+make clean
+make -j3 # use 3/4 cores to compile
+```
+ 3. This will generate a binary located at `~/katapult/out/katapult.bin`.
+ 4. Move and rename this binary: `mv ~/katapult/out/katapult.bin ~/katapult/binaries/katapult_mcu.bin`
 
 Configuring the bootloader for the toolhead MCU was similar. I ran `make menuconfig`, `make clean`, and `make -j3` again with the following settings:  
 <img width="1172" height="630" alt="image" src="https://github.com/user-attachments/assets/8fd7ecbf-45fc-480d-ac91-9831305e350b" />
