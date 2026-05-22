@@ -115,7 +115,7 @@ This step is difficult and is the riskiest part of the procedure. It may be comp
 <img width="756" height="1008" alt="IMG_57114" src="https://github.com/user-attachments/assets/3c8bf3c9-689e-418f-9f5e-83205eeda592" />   
 4. Try to flash the MCU. (__This is difficult and I haven't found a better way to do this yet__).   
 	1. The toolhead MCU (I think) doesn't respond to the SWD interface and needs to be reset manually. To achieve this, the NRST pin (shown below) must be grounded (connected to the GND pin).  
-<img width="426" height="346" alt="image" src="https://github.com/user-attachments/assets/60e1b20e-7de6-4b75-81c2-fe861b51f50b" />
+<img width="426" height="346" alt="image" src="https://github.com/user-attachments/assets/60e1b20e-7de6-4b75-81c2-fe861b51f50b" />  
 	2. Unfortunately, the NRST pin(which needs to be grounded) is right next to the VDD pin and (to my knowledge) is not connected to any other components on the board, meaning that physically touching the NRST risks shorting the MCU as well as the ST-Link. This will temporarily reset both components, meaning the ST-Link will have to be re-plugged in. Testing if the ST-Link is shorted or not can be found by running `st-info --connect-under-reset --probe` and seeing if anything is detected. 
     3. My eventual solution was to take a very thin acupuncture/nozzle cleaning wire with one end connected to the GND pin and *carefully* try to ground the NRST pin without shorting the VSSA pin to ground.   
 __*this had a success rate of 25% for me*__
@@ -179,13 +179,12 @@ sudo systemctl start klipper-mcu
 - Install [HelixScreen](https://github.com/prestonbrown/helixscreen)
   - HelixScreen is a lightweight touchscreen renderer for 3d printers. It uses less system resources than KlipperScreen and (in my experience) is more convenient and easier to use.
   - To install HelixScreen, run the autoinstaller script: `curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | sh`
-  - Sovol's screen is rotated 180 degrees, which flips the screen. To unflip the screen, edit the HelixScreen config file with `nano ~/helixscreen/config/setting.json`. In 
- 
+  - Sovol's screen is rotated 180 degrees, which flips the screen. To unflip the screen, edit the HelixScreen config file with `nano ~/helixscreen/config/setting.json`. Update the `screen:{` section to look something like this: 
 ```
 ...
     "drm_device": "",
-    "gcode_render_mode": 0,
-    "rotate": 180,
+    "gcode_render_mode": 0, #don't forget to add the comma here!
+    "rotate": 180, # add this to make the rotator work
     "screensaver_type": 2,
     "sleep_sec": 1200,
 ...
