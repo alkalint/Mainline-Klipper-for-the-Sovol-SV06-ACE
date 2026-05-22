@@ -51,15 +51,14 @@ cd ~ && ./kiauh/kiauh.sh
 ```
 6. Install the Klipper and Moonraker files with KIAUH.
 	1. Run the script again with `./kiauh/kiauh.sh`.
- 2. Type `1` to enter the installation mode, and install Kli
- 3. add more on details soon
+ 2. Type `1` to enter the installation mode, and install Klipper and Moonraker fully. 
 
 ## Step 2: Configuring Katapult
 The [Katapult](https://github.com/Arksine/katapult) bootloader allows for repeated Klipper flashing via the `/dev/ttyS1` and `/dev/serial/by-id/` interfaces, making Klipper easier to update. It's open source as well!
 1. To install Katapult, run: `git clone https://github.com/Arksine/katapult.git `
 2. Enter the Katapult folder and make a new directory called `binaries` with `cd katapult && mkdir binaries`.     
 3. For the mainboard MCU: 
-   1. To configure Katapult, run `make meuconfig` and select the following options on the pop-up screen with the arrow keys:
+   1. To configure Katapult, run `make menuconfig` and select the following options on the pop-up screen with the arrow keys:
 <img width="1166" height="648" alt="image" src="https://github.com/user-attachments/assets/5b92b5ca-53d8-48a2-bc9e-a1648659698a" />
 	2. To compile Katapult, run:
 ```
@@ -68,19 +67,19 @@ make -j3 # use 3/4 cores to compile
 ```
  3. This will generate a binary located at `~/katapult/out/katapult.bin`.
  4. Move and rename this binary: `mv ~/katapult/out/katapult.bin ~/katapult/binaries/katapult_mcu.bin`
-
-Configuring the bootloader for the toolhead MCU was similar. I ran `make menuconfig`, `make clean`, and `make -j3` again with the following settings:  
+4. Configuring Katapult for the mainboard MCU is similar:
+	1. Run `make menuconfig` and select the following options. 
 <img width="1172" height="630" alt="image" src="https://github.com/user-attachments/assets/8fd7ecbf-45fc-480d-ac91-9831305e350b" />
-In case anything happened, I configured the F103 to enter bootloader mode when the pin PA6 would be grounded, which is on an unused connector.  
-<img width="490" height="494" alt="image" src="https://github.com/user-attachments/assets/8c96a182-a69c-4bd3-a389-1ce31dc1813f" />  
-After creating the second binary, I moved it to `katapult/binaries` as well. 
+   2. Move the binary: `mv ~/katapult/out/katapult.bin ~/katapult/binaries/katapult_toolhead_mcu.bin`
+<!-- <img width="490" height="494" alt="image" src="https://github.com/user-attachments/assets/8c96a182-a69c-4bd3-a389-1ce31dc1813f" /> -->
 
 ## Step 4: Flashing Katapult to the mainboard MCU (easy) 
-To flash Katapult, I used a [ST-Link](https://www.amazon.com/s?k=st-link) and the [st-link](https://github.com/stlink-org/stlink) library. 
+1. To flash Katapult, I used a [ST-Link](https://www.amazon.com/s?k=st-link) and the [st-link](https://github.com/stlink-org/stlink) library
+2. Install st-link with
 ```
 sudo apt install st-tools
 ```
-To flash the mainboard MCU, connect the ST-Link to GND, IO, and CLK pins. Attach the other end (usb) to the USB port of the Ace.  
+3. The ST-Link should have at least four output pins for this section, named "GND", "SWDIO", "SWDCLK", and "3.3V". 
 <img width="222" height="533" alt="e2cf1cb0179fc98c5e0ba4aaafd3386d1778744663187 (1)" src="https://github.com/user-attachments/assets/fda7a575-1da0-4c15-b814-9d1f10931065" />
 <img width="448" height="351" alt="image1778227883579" src="https://github.com/user-attachments/assets/ee7768ae-9d9a-4806-8070-ee8daaf6f454" />    
 I aligned the images to make sure the pins are in the same orientation, eg. top right is VDD for both six-pin connectors. 
@@ -155,8 +154,27 @@ Start the klipper services again:
 sudo systemctl stop klipper
 sudo systemctl start klipper-mcu
 ```
-There are other problems that I have(listed in the todo list below) but for now that's how I got all the MCUs and the CPU updated and mainlined. 
-
+## OPTIONAL
+- Install [HelixScreen](https://github.com/prestonbrown/helixscreen)
+  - HelixScreen is a lightweight touchscreen renderer for 3d printers. It uses less system resources than KlipperScreen and (in my experience) is more convenient and easier to use.
+  - To install HelixScreen, run the autoinstaller script: `curl -sSL https://raw.githubusercontent.com/prestonbrown/helixscreen/main/scripts/install.sh | sh`
+  - Sovol's screen is rotated 180 degrees, which flips the screen. To unflip the screen, edit the HelixScreen config file with `nano ~/helixscreen/config/setting.json`. In 
+ 
+```
+...
+    "drm_device": "",
+    "gcode_render_mode": 0,
+    "rotate": 180,
+    "screensaver_type": 2,
+    "sleep_sec": 1200,
+...
+```
+  - Save and close the config with Ctrl+S and Ctrl+X.
+  - Finally, restart the HelixScreen service with `sudo systemtl restart helixscreen`.
+- Install [KlipperScreen](https://github.com/R8CEH/klipperscreen_sovol_sv06_ace)
+   - Note that KlipperScreen and HelixScreen usage are mutually exclusive. You can only run one or the other.
+- Macros/cfg upgrades:
+   - Check the Sovol Discord for new upgrades to config files for now. 
 
 ### todo list
 - On startup, the host mcu needs to be resetted twice every time to boot Klipper instead of booting it straightaway. 
