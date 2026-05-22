@@ -20,7 +20,8 @@ The Sovol SV06 Ace's electronics all run Sovol's modified version of Klipper and
 - ~~The files used for this guide can now be found together in the GitHub folder /files-used/ HERE~~ (coming soon)
 - To edit the different files during this guide please use a text editor like Notepad++ (or use nano from ssh). This way we can make sure the files stay in a proper format with proper (Linux style) line endings and work as intended. When using the default Windows Notepad this is not always the case!
 - If at any point things have gone very wrong (bricked) Sovol has its own instructions for reflashing the printer to stock software [here](https://wiki.sovol3d.com/en/SV06-ACE-image-flashing-tutorial).
-- (kinda plagarized the SV08 mainline markdown) 
+- (kinda plagarized the SV08 mainline markdown)
+- Unless explicitly stated, every time `nano` is used, save and close the file with Ctrl+S and Ctrl+X. 
 
 ## Step 1: Replace Sovol files
 
@@ -73,17 +74,16 @@ make -j3 # use 3/4 cores to compile
    2. Move the binary: `mv ~/katapult/out/katapult.bin ~/katapult/binaries/katapult_toolhead_mcu.bin`
 <!-- <img width="490" height="494" alt="image" src="https://github.com/user-attachments/assets/8c96a182-a69c-4bd3-a389-1ce31dc1813f" /> -->
 
-## Step 4: Flashing Katapult to the mainboard MCU (easy) 
+## Step 3: Flashing Katapult to the mainboard MCU (easy) 
 1. To flash Katapult, I used a [ST-Link](https://www.amazon.com/s?k=st-link) and the [st-link](https://github.com/stlink-org/stlink) library
 2. Install st-link with
 ```
 sudo apt install st-tools
 ```
-3. The ST-Link should have at least four output pins for this section, named "GND", "SWDIO", "SWDCLK", and "3.3V". 
-<img width="222" height="533" alt="e2cf1cb0179fc98c5e0ba4aaafd3386d1778744663187 (1)" src="https://github.com/user-attachments/assets/fda7a575-1da0-4c15-b814-9d1f10931065" />
-<img width="448" height="351" alt="image1778227883579" src="https://github.com/user-attachments/assets/ee7768ae-9d9a-4806-8070-ee8daaf6f454" />    
-I aligned the images to make sure the pins are in the same orientation, eg. top right is VDD for both six-pin connectors. 
-After plugging in the ST-Link, you can check the MCU is connected:
+3. The ST-Link should have at least four output pins for this section, named "GND", "SWDIO", "SWDCLK", and "3.3V". Match each pin on the ST-Link to the labeled pin on the motherboard, labelled below. 
+<img width="730" height="521" alt="image1778227883579(1)" src="https://github.com/user-attachments/assets/2b3fa8dd-1be5-4453-9025-b99b6f92b869" />
+4. Plug in the USB side of the ST-Link into the USB port on the Ace. 
+    1. After plugging in the ST-Link, you can check the MCU is connected by running `st-info --probe`. This should return something like this.   
 ```
 sovol@sovol:~/katapult$ st-info --probe
 Found 1 stlink programmers
@@ -95,65 +95,86 @@ Found 1 stlink programmers
  descr:      F4xx
 sovol@sovol:~/katapult$
 ```
-What I did not do(and should have done) is copy any existing bootloader to a backup file. I haven't seen if this actually works, but 
-`st-flash --debug read option_bytes_dump.bin 0x08000000 16384` might work  
-Erase the flash memory and flash the new memory with
+
+5. Back up the bootloader memory with `st-flash --debug read mcu-bootloader-backup.bin 0x08000000 16384` __(UNTESTED)__
+6. Erase the flash memory and flash the new memory with
 ```
 st-flash erase
 st-flash write ~/katapult/binaries/katapult_mcu.bin 0x08000000
 ```
+7. Unplug the wires from the motherboard connected to the ST-Link. 
 
 
-## Step 5: Flashing Katapult to the toolhead MCU (i didnt like this part) 
-This step _may_ be easier than the first. Only after I flashed Katapult did I realize that Sovol made a script to update Klipper with the stock bootloader `/root/extra_mcu_update.sh`. If this works __please tell me!__  
-But, if that doesn't work:  
-<img width="756" height="1008" alt="IMG_57114" src="https://github.com/user-attachments/assets/3c8bf3c9-689e-418f-9f5e-83205eeda592" />  
-Sovol has clearly labeled the pin functions of the four protruding pins. Plug these in to the corresponding pins on the ST-Link. 
-### the problem  
-<img width="426" height="346" alt="image" src="https://github.com/user-attachments/assets/60e1b20e-7de6-4b75-81c2-fe861b51f50b" />        
-The STM32F103 evidently is in DFU? Klipper? mode and doesn't accept read/write requests from the SWD pins. To reset it, the NRST pin must be grounded, but (infuriatingly) it is both (1) not an explicit I/O pin, meaning that it is only accessible by touching the physical chip, and (2) __is next to the VSSA pin!__  
-My eventual solution was to take a very thin acupuncture/nozzle cleaning wire with one grounded end and *carefully* try to ground the NRST pin without shorting the VSSA pin to ground.   
-I had a success rate of ~25%. This procedure is done at your own risk.  
-Assuming you reset the NRST pin, use st-flash* with the flag `--connect-under-reset`:
+## Step 4: Flashing Katapult to the toolhead MCU (difficult). 
+
+This step is difficult and is the riskiest part of the procedure. It may be completely avoidable since Sovol's stock bootloader (seems) to function similar to Katapult, but this is untested as I have overwritten the stock bootloader with stock Katapult. Go to to Step 5 for more information
+
+1.Unscrew the two screws holding the USB-C connector to the toolhead and unplug the USB. The ST-Link will power the MCU while flashing. 
+2. Like before, keep the ST-Link connected via USB.
+3. Connect the pins on the ST-Link to the pins on the toolhead MCU. 
+<img width="756" height="1008" alt="IMG_57114" src="https://github.com/user-attachments/assets/3c8bf3c9-689e-418f-9f5e-83205eeda592" />   
+4. Try to flash the MCU. (__This is difficult and I haven't found a better way to do this yet__).   
+	1. The toolhead MCU (I think) doesn't respond to the SWD interface and needs to be reset manually. To achieve this, the NRST pin (shown below) must be grounded (connected to the GND pin).  
+<img width="426" height="346" alt="image" src="https://github.com/user-attachments/assets/60e1b20e-7de6-4b75-81c2-fe861b51f50b" />
+	2. Unfortunately, the NRST pin(which needs to be grounded) is right next to the VDD pin and (to my knowledge) is not connected to any other components on the board, meaning that physically touching the NRST risks shorting the MCU as well as the ST-Link. This will temporarily reset both components, meaning the ST-Link will have to be re-plugged in. Testing if the ST-Link is shorted or not can be found by running `st-info --connect-under-reset --probe` and seeing if anything is detected. 
+    3. My eventual solution was to take a very thin acupuncture/nozzle cleaning wire with one end connected to the GND pin and *carefully* try to ground the NRST pin without shorting the VSSA pin to ground.   
+__*this had a success rate of 25% for me*__
+5. Assuming you reset the NRST pin, use st-flash* with the flag `--connect-under-reset`:
 ```
 st-flash --connect-under-reset erase
 st-flash --connect-under-reset write ~/katapult/binaries/katapult_mcu.bin 0x08000000
 ```
+6. Unplug the ST-Link wires connected to the toolhead and plug in the USB. 
 
-## Step 6: Compiling & Flashing Klipper
-I have a script on the way but it's not so reliable and is a WIP. 
-Before flashing, stop klipper and the klipper-mcu services, as they may "compete" for the ports we are trying to flash Klipper through. 
+## Step 5: Compiling & Flashing Klipper
+
+(untested) Flashing the toolhead MCU may be possible by using Sovol's built-in script. First, run `make menuconfig` with the settings under step 3, except make the bootloader offset 32 KiB. 
+Enter the root directory via `sudo su && cd` and run the Sovol flashing script with `./extra_mcu_update.sh /home/sovol/klipper/out/klipper.bin`. Return to the user directory via `exit`. Restart Klipper and check(via Mainsail or klippy.log) if Moonraker connects to the toolhead (extra_mcu)
+If this doesn't work, repeat the instructions except with a successively smaller bootloader offset, decreasing by 4 KiB every time (28 Kib, then 24 Kib.. 8 Kib). 
+If you have successful results please message me on the Sovol Discord or leave a comment/issue on this repo. 
+
+1. Before flashing, stop klipper and the klipper-mcu services, as they may "compete" for the ports we are trying to flash Klipper through. 
 ```
 sudo systemctl stop klipper
 sudo systemctl stop klipper-mcu
 ```
-For the mainboard MCU:  
-Enter the Klipper directory (`cd ~/klipper`) and run `make menuconfig` to configure Klipper.
-Configure the settings like so: 
+2. For the mainboard MCU:  
+   1. Enter the Klipper directory (`cd ~/klipper`) and run `make menuconfig` to configure Klipper.
+   2. Configure the settings like so: 
 <img width="1109" height="624" alt="image" src="https://github.com/user-attachments/assets/2993ad8d-8651-4837-bf3d-53227a322046" />  
-To compile, run `make clean` and `make -j3` again.   
-To flash Klipper to the MCU, run: 
+	3. To compile Klipper, run `make clean` and `make -j3` again.   
+	4. To flash Klipper to the MCU, run: 
+	```
+	python3 ~/katapult/scripts/flashtool.py -d /dev/ttyS1 -f ~/klipper/out/klipper.bin
+	```
+3. For the toolhead MCU, repeat the mainboard MCU Klipper structions up to (iii) but with the following settings after `make meuconfig`. 
+<img width="1111" height="629" alt="image" src="https://github.com/user-attachments/assets/baa21e48-8f32-4309-a802-af269fa399af" />
+	1. Find the exact name of your toolhead MCU serial by running `ls /dev/serial/by-id/*`. This should return something like this, with a long name:
 ```
-python3 flashtool.py -d /dev/ttyS1 -f ~/klipper/out/klipper.bin
+sovol@sovol/katapult:~$ ls /dev/serial/by-id/*
+/dev/serial/by-id/usb-Klipper_stm32f103xe_52FF6B067167485743401787-if00
+sovol@sovol:~$
 ```
-which should show some encouraging output. 
-Repeat these instructions again for the toolhead MCU, but with the following settings after `make menuconfig`:  
-<img width="1111" height="629" alt="image" src="https://github.com/user-attachments/assets/baa21e48-8f32-4309-a802-af269fa399af" />  
+ 2. Copy the path to the file for flashtool.py, and run flashtool.py with it:
+```
+python3 ~/katapult/scripts/flashtool.py -f ~/klipper/out/klipper.bin -d /dev/serial/by-id/usb-Klipper_stm32f103xe_52FF6B067167485743401787-if00 # change this with the results got by ls
+```
 
-Finally, for the virtual MCU, run `make menuconfig`   
+5. Finally, for the virtual MCU, run `make menuconfig` with the following settings: 
 <img width="1112" height="627" alt="image" src="https://github.com/user-attachments/assets/a7051464-f05f-4494-b311-db39651d87cf" />  
-After this, run `make clean` and `make -j3`. 
-However, Klipper itself seems to say to instead use `make` to flash the virtual MCU. Run:   
+	1. After this, run `make clean` and `make -j3`. 
+	2. Since the virtual MCU isn't a real MCU, simply use `make` to flash the virtual MCU.  
 ```
 make flash
 ```
 
-## Step 7: enjoy klipper!
-Start the klipper services again: 
+## Step 6: Update printer configs
+1. Start the klipper services again: 
 ```
 sudo systemctl stop klipper
 sudo systemctl start klipper-mcu
 ```
+2. Sovol has custom gcodes that they need to update. I am tired so I will do these later. 
 ## OPTIONAL
 - Install [HelixScreen](https://github.com/prestonbrown/helixscreen)
   - HelixScreen is a lightweight touchscreen renderer for 3d printers. It uses less system resources than KlipperScreen and (in my experience) is more convenient and easier to use.
@@ -169,19 +190,17 @@ sudo systemctl start klipper-mcu
     "sleep_sec": 1200,
 ...
 ```
-  - Save and close the config with Ctrl+S and Ctrl+X.
   - Finally, restart the HelixScreen service with `sudo systemtl restart helixscreen`.
 - Install [KlipperScreen](https://github.com/R8CEH/klipperscreen_sovol_sv06_ace)
    - Note that KlipperScreen and HelixScreen usage are mutually exclusive. You can only run one or the other.
+- Install [KAMP](https://github.com/kyleisah/Klipper-Adaptive-Meshing-Purging). The GitHub page has good instructions and this allows for some nice bed probing features. 
 - Macros/cfg upgrades:
    - Check the Sovol Discord for new upgrades to config files for now. 
 
 ### todo list
-- On startup, the host mcu needs to be resetted twice every time to boot Klipper instead of booting it straightaway. 
-- Sovol's own Klipper has its own [hx711] section in its printer.cfg but I haven't figured out how to move this over to Mainline Klipper, which has some weird pins and syntax and stuff. This kind of makes the nozzle crash into the bed when homing, which sucks :(
+- Add the [hx711] rework section
 - Hey maybe you don't need all the stlink stuff for the mainboard MCU <img width="977" height="424" alt="image" src="https://github.com/user-attachments/assets/1014d78d-033e-4393-84fc-8ffae5000113" />
 - And if Sovol's root/extra_mcu_update.sh works normally, then there's not need to reflash Katapult using the ST-Link:/
 - Trace the toolhead circuitboard to find a potential spot where the NRST pin is connected to
 - Try flashing the MCUs with the Katapult scripts but without reflashing Katapult
 - Make a script to compile and flash Klipper at the same time, making it much easier to use
-- Polish the README. Halfway through my tone changes from "I did this and its easy" to "here's a step by step tutorial and this is what you should do"
